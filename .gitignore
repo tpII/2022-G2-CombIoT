@@ -1,0 +1,5 @@
+.idea/
+web/combi/__pycache__/
+web/db.sqlite3
+web/reserva/__pycache__/
+web/reserva/migrations/__pycache__/
