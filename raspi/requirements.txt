@@ -1,1 +1,4 @@
 opencv-python==4.6.0.66
+imutils==0.5.4
+numpy==1.23.4
+pdf417decoder==1.0.8

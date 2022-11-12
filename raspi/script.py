@@ -1,3 +1,5 @@
+import RPi.GPIO as GPIO
+from grove_rgb_lcd import *
 import cv2
 import numpy as np
 import pdf417decoder
@@ -85,15 +87,25 @@ def check_image(frame):
         except Exception:
             print("error rotating frame")
 
-        cv2.imshow("Frame", frame)
-        #We wait 33ms (that way we have 30 fps)
-        key = cv2.waitKey(33) & 0xFF
+        #cv2.imshow("Frame", frame)
+        #We wait 33ms (that way we have 10 fps)
+        key = cv2.waitKey(100) & 0xFF
 
         img = Image.fromarray(frame)
         decoder = pdf417decoder.PDF417Decoder(img)
         if (decoder.decode() > 0):
             print("Barcode decoded\a\n")
             print(decoder.barcode_data_index_to_string(0))
+            setRGB(0,128,64)
+            setText(decoder.barcode_data_index_to_string(0))
+            GPIO.output(37,1)
+            time.sleep(0.15)
+            GPIO.output(37,0)
+            time.sleep(2)
+            setRGB(0,0,0)
+            textCommand(0x01)
+        else:
+          print(box)
 
     return key
 
@@ -103,6 +115,23 @@ cam = cv2.VideoCapture(0)
 print("isOpened:" + str(cam.isOpened()))
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1024)
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(37,GPIO.OUT)
+setRGB(255,255,255)
+setText("Bienvenidos")
+GPIO.output(37,1)
+time.sleep(0.1)
+GPIO.output(37,0)
+time.sleep(0.5)
+GPIO.output(37,1)
+time.sleep(0.1)
+GPIO.output(37,0)
+time.sleep(0.5)
+GPIO.output(37,1)
+time.sleep(0.7)
+textCommand(0x01)
+setRGB(0,0,0)
+GPIO.output(37,0)
 
 while (True):
     ret, image = cam.read()
