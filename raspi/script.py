@@ -92,6 +92,28 @@ def emit_sound(secs):
     GPIO.output(BUZZER_PIN, 0)
 
 
+def is_valid_format(obj):
+    return "nombre" in obj and "apellido" in obj and "DNI" in obj and "fecha" in obj and "hora" in obj and "email" in obj
+
+
+def is_valid_date(obj):
+    # Parse ticket date
+    date = time.strptime(obj["fecha"] + " " + obj["hora"], "%Y-%m-%d %H:%M:%S")
+
+    # Get the limit dates for which the ticket is valid (1 hour before, 2 hours later)
+    bottom_date = time.localtime(time.time() - 3600)
+    top_date = time.localtime(time.time() + 3600 * 2)
+
+    return bottom_date < date < top_date
+
+
+def get_pretty_ticket_data(obj):
+    name = obj["apellido"] + ", " + obj["nombre"]
+    date_str = obj["fecha"] + " " + obj["hora"]
+
+    return name[0:16] + "\n" + date_str[0:16]
+
+
 def check_decoded_code(code):
     # Replace single quotes for double quotes (json is generated malformed)
     code = code.replace("'", '"')
@@ -102,24 +124,14 @@ def check_decoded_code(code):
         obj = json.loads("{}")
 
     # Check if json format is valid
-    if not ("nombre" in obj and "apellido" in obj and "DNI" in obj and "fecha" in obj and "hora" in obj and "email" in obj):
+    if not is_valid_format(obj):
         sounds = 4
         setRGB(255, 0, 0)  # red
         setText("Formato invalido")
     else:
-        # Parse ticket date
-        date = time.strptime(obj["fecha"] + " " + obj["hora"], "%Y-%m-%d %H:%M:%S")
+        setText(get_pretty_ticket_data(obj))
 
-        # Get the limit dates for which the ticket is valid (1 hour before, 2 hours later)
-        bottom_date = time.localtime(time.time() - 3600)
-        top_date = time.localtime(time.time() + 3600 * 2)
-
-        name = obj["apellido"] + ", " + obj["nombre"]
-        date_str = obj["fecha"] + " " + obj["hora"]
-
-        setText(name[0:16] + "\n" + date_str[0:16])
-
-        if bottom_date < date < top_date:
+        if is_valid_date(obj):
             sounds = 1
             # Ticket is valid
             setRGB(0, 128, 64)  # green
