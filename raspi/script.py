@@ -7,6 +7,8 @@ from PIL import Image
 import imutils
 import math
 import time
+import json
+
 
 def detect_barcode(image):
     # convert the image to grayscale
@@ -83,16 +85,53 @@ def crop_frame(frame, box):
     return frame[x1:x2, y1:y2]
 
 
-def check_decoded_code(code):
-    print(code)
-    # For now, we just print code in the LCD
-    setRGB(0, 128, 64)
-    setText(code)
-
-    # We make a small sound
+def emit_sound(secs):
+    # We turn the buzzer, wait for secs seconds, and then turn it off
     GPIO.output(BUZZER_PIN, 1)
-    time.sleep(0.15)
+    time.sleep(secs)
     GPIO.output(BUZZER_PIN, 0)
+
+
+def check_decoded_code(code):
+    # Replace single quotes for double quotes (json is generated malformed)
+    code = code.replace("'", '"')
+
+    try:
+        obj = json.loads(code)
+    except json.decoder.JSONDecodeError:
+        obj = json.loads("{}")
+
+    # Check if json format is valid
+    if not ("nombre" in obj and "apellido" in obj and "DNI" in obj and "fecha" in obj and "hora" in obj and "email" in obj):
+        sounds = 4
+        setRGB(255, 0, 0)  # red
+        setText("Formato invalido")
+    else:
+        # Parse ticket date
+        date = time.strptime(obj["fecha"] + " " + obj["hora"], "%Y-%m-%d %H:%M:%S")
+
+        # Get the limit dates for which the ticket is valid (1 hour before, 2 hours later)
+        bottom_date = time.localtime(time.time() - 3600)
+        top_date = time.localtime(time.time() + 3600 * 2)
+
+        name = obj["apellido"] + ", " + obj["nombre"]
+        date_str = obj["fecha"] + " " + obj["hora"]
+
+        setText(name[0:16] + "\n" + date_str[0:16])
+
+        if bottom_date < date < top_date:
+            sounds = 1
+            # Ticket is valid
+            setRGB(0, 128, 64)  # green
+        else:
+            sounds = 3
+            # Ticket is out of range
+            setRGB(255, 255, 0)  # yellow
+
+    # We make small sounds (1 means OK, 3 means out of range, 4 means wrong format)
+    for i in range(sounds):
+        emit_sound(0.15)
+        time.sleep(0.15)
 
     # After 3 seconds, we clear the screen and turn it off
     time.sleep(3)
@@ -129,7 +168,7 @@ def check_image(frame):
         img = Image.fromarray(frame)
         # Actually try to decode the pdf417 code
         decoder = pdf417decoder.PDF417Decoder(img)
-        if (decoder.decode() > 0):
+        if decoder.decode() > 0:
             print("Barcode decoded\a\n")
             code = decoder.barcode_data_index_to_string(0)
             check_decoded_code(code)
@@ -143,15 +182,11 @@ def welcome_message():
     setRGB(255, 255, 255)
     setText("  Bienvenidos!  ")
     for i in range(2):
-        GPIO.output(BUZZER_PIN, 1)
-        time.sleep(0.1)
-        GPIO.output(BUZZER_PIN, 0)
+        emit_sound(0.1)
         time.sleep(0.5)
-    GPIO.output(BUZZER_PIN, 1)
-    time.sleep(0.7)
+    emit_sound(0.7)
     textCommand(0x01)
     setRGB(0, 0, 0)
-    GPIO.output(37, 0)
 
 
 BUZZER_PIN = 37
