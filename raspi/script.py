@@ -126,21 +126,27 @@ def check_decoded_code(code):
     # Check if json format is valid
     if not is_valid_format(obj):
         sounds = 4
-        setRGB(255, 0, 0)  # red
+        setRGB(128, 0, 0)  # red
         setText("Formato invalido")
     else:
-        setText(get_pretty_ticket_data(obj))
-
-        if is_valid_date(obj):
-            sounds = 1
-            # Ticket is valid
-            setRGB(0, 128, 64)  # green
+        if code in valid_scanned_codes:
+            # Ticket has already been scanned
+            setText("Codigo ya usado")
+            sounds = 2
+            setRGB(153, 81, 219)  # purple
         else:
-            sounds = 3
-            # Ticket is out of range
-            setRGB(255, 255, 0)  # yellow
+            setText(get_pretty_ticket_data(obj))
+            if is_valid_date(obj):
+                # Ticket is valid
+                valid_scanned_codes.add(code)
+                sounds = 1
+                setRGB(0, 128, 0)  # green
+            else:
+                # Ticket is out of date range
+                sounds = 3
+                setRGB(255, 255, 0)  # yellow
 
-    # We make small sounds (1 means OK, 3 means out of range, 4 means wrong format)
+    # We make small sounds (1 means OK, 2 means already scanned, 3 means out of range, 4 means wrong format)
     for i in range(sounds):
         emit_sound(0.15)
         time.sleep(0.15)
@@ -180,11 +186,13 @@ def check_image(frame):
         img = Image.fromarray(frame)
         # Actually try to decode the pdf417 code
         decoder = pdf417decoder.PDF417Decoder(img)
+        setRGB(255, 255, 255)
         if decoder.decode() > 0:
             print("Barcode decoded\a\n")
             code = decoder.barcode_data_index_to_string(0)
             check_decoded_code(code)
         else:
+            setRGB(0, 0, 0)
             print(box)
 
     return key
@@ -203,12 +211,15 @@ def welcome_message():
 
 BUZZER_PIN = 37
 
+valid_scanned_codes = set()
+
 # Initialize camera
 cam = cv2.VideoCapture(0)
 
 print("isOpened:" + str(cam.isOpened()))
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1024)
+cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BOARD)
@@ -217,6 +228,8 @@ GPIO.setup(BUZZER_PIN, GPIO.OUT)
 welcome_message()
 
 while True:
-    ret, image = cam.read()
+    for i in range(5):
+        ret, image = cam.read()
+    print("picture took")
     if ret:
         check_image(image)
